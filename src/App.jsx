@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { 
-  TrendingUp, 
-  DollarSign, 
-  ShieldCheck, 
-  Activity, 
-  Search, 
-  Loader2, 
-  AlertCircle 
+  TrendingUp, DollarSign, ShieldCheck, Activity, 
+  Search, Loader2, AlertCircle, History, Trash2, ArrowUpRight 
 } from 'lucide-react';
 
 const StockApp = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [historico, setHistorico] = useState([]); // Novo Estado para o Histórico
   
   const [inputs, setInputs] = useState({
     ticker: 'BBAS3',
@@ -23,41 +19,61 @@ const StockApp = () => {
     crescimento: 10
   });
 
-  const [results, setResults] = useState({
-    bazin: { teto: 0, status: '' },
-    graham: { justo: 0, margem: 0 },
-    lynch: { peg: 0, status: '' }
-  });
+  // --- LÓGICA DO HISTÓRICO ---
+  
+  // Carregar do localStorage ao iniciar
+  useEffect(() => {
+    const salvo = localStorage.getItem('historicoAcoes');
+    if (salvo) setHistorico(JSON.parse(salvo));
+  }, []);
 
-  // Função para buscar dados reais via API Brapi
+  // Salvar no localStorage sempre que o histórico mudar
+  useEffect(() => {
+    localStorage.setItem('historicoAcoes', JSON.stringify(historico));
+  }, [historico]);
+
+  const adicionarAoHistorico = (dados) => {
+    const novoItem = { ...dados, id: Date.now() };
+    // Mantém apenas as últimas 5 pesquisas e evita duplicados seguidos
+    setHistorico(prev => {
+      const filtrado = prev.filter(item => item.ticker !== dados.ticker);
+      return [novoItem, ...filtrado].slice(0, 5);
+    });
+  };
+
+  const limparHistorico = () => setHistorico([]);
+
+  const carregarDoHistorico = (item) => setInputs(item);
+
+  // --- FIM DA LÓGICA DO HISTÓRICO ---
+
   const buscarDados = async () => {
     if (!inputs.ticker) return;
     setLoading(true);
     setError('');
     
     try {
-      // NOTA: Substitua 'SEU_TOKEN_AQUI' pelo seu token do site brapi.dev
-      const token = 'sxKPbJ9GaFUK9wPWB3Zjs9'; 
+      const token = 'sxKPbJ9GaFUK9wPWB3Zjs9'; // <--- COLOQUE SEU TOKEN AQUI
       const response = await fetch(`https://brapi.dev/api/quote/${inputs.ticker.toUpperCase()}?token=${token}&fundamental=true`);
       const data = await response.json();
       
       if (data.results && data.results[0]) {
         const stock = data.results[0];
-        
-        setInputs(prev => ({
-          ...prev,
-          precoAtual: stock.regularMarketPrice || prev.precoAtual,
-          // Cálculo estimado de dividendos se a API retornar yield
-          dividendo: stock.dividendYield ? (stock.regularMarketPrice * (stock.dividendYield / 100)) : prev.dividendo,
-          lpa: stock.priceEarnings ? (stock.regularMarketPrice / stock.priceEarnings) : prev.lpa,
-          vpa: stock.bookValuePerShare || prev.vpa,
-          pl: stock.priceEarnings || prev.pl
-        }));
+        const novosDados = {
+          ...inputs,
+          precoAtual: stock.regularMarketPrice || inputs.precoAtual,
+          dividendo: stock.dividendYield ? (stock.regularMarketPrice * (stock.dividendYield / 100)) : inputs.dividendo,
+          lpa: stock.priceEarnings ? (stock.regularMarketPrice / stock.priceEarnings) : inputs.lpa,
+          vpa: stock.bookValuePerShare || inputs.vpa,
+          pl: stock.priceEarnings || inputs.pl
+        };
+        setInputs(novosDados);
+        adicionarAoHistorico(novosDados); // Salva no histórico após a busca
       } else {
         setError('Ticker não encontrado.');
       }
     } catch (err) {
-      setError('Erro na conexão com a API.');
+      setError('Erro na conexão.');
     } finally {
       setLoading(false);
     }
@@ -65,163 +81,140 @@ const StockApp = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setInputs(prev => ({ 
-      ...prev, 
-      [name]: name === 'ticker' ? value : parseFloat(value) || 0 
-    }));
+    setInputs(prev => ({ ...prev, [name]: name === 'ticker' ? value : parseFloat(value) || 0 }));
   };
 
-  // Cálculo das Metodologias
-  useEffect(() => {
-    // 1. Bazin (Preço Teto para 6% de Yield)
-    const tetoBazin = inputs.dividendo / 0.06;
-    
-    // 2. Graham (Valor Justo com multiplicador 22.5)
-    // Usamos Math.max(0, ...) para evitar erro de raiz quadrada de número negativo
-    const valorJustoGraham = Math.sqrt(Math.max(0, 22.5 * inputs.lpa * inputs.vpa));
-    
-    // 3. Lynch (PEG Ratio)
-    const pegRatio = inputs.crescimento > 0 ? (inputs.pl / inputs.crescimento) : 0;
-
-    setResults({
-      bazin: { 
-        teto: tetoBazin, 
-        status: inputs.precoAtual < tetoBazin ? 'Desconto' : 'Caro' 
-      },
-      graham: { 
-        justo: valorJustoGraham, 
-        margem: valorJustoGraham > 0 ? ((valorJustoGraham - inputs.precoAtual) / valorJustoGraham) * 100 : 0 
-      },
-      lynch: { 
-        peg: pegRatio, 
-        status: pegRatio > 0 && pegRatio < 1 ? 'Excelente' : 'Atenção' 
-      }
-    });
-  }, [inputs]);
+  // Cálculos
+  const tetoBazin = inputs.dividendo / 0.06;
+  const valorJustoGraham = Math.sqrt(Math.max(0, 22.5 * inputs.lpa * inputs.vpa));
+  const pegRatio = inputs.crescimento > 0 ? (inputs.pl / inputs.crescimento) : 0;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 p-4 md:p-8 font-sans">
-      <header className="max-w-6xl mx-auto mb-10 text-center">
-        <h1 className="text-4xl font-extrabold bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent italic tracking-tight">
-          IdeasFor Stock Pro
-        </h1>
-        <p className="text-slate-500 mt-2 text-xs uppercase tracking-[0.3em]">Fundamentalismo Estratégico</p>
+      <header className="max-w-7xl mx-auto mb-10 flex justify-between items-center border-b border-slate-900 pb-6">
+        <div>
+          <h1 className="text-3xl font-black bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent italic">
+            Ideas: Value Analyzer Pro
+          </h1>
+          <p className="text-slate-500 text-[10px] uppercase tracking-widest">Ideasfor soluction v2.0</p>
+        </div>
+        <div className="hidden md:block text-right">
+          <p className="text-slate-400 text-xs font-mono">Status da API: <span className="text-emerald-500 underline">Conectado</span></p>
+        </div>
       </header>
 
-      <main className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Formulário de Dados */}
-        <section className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-2xl h-fit">
-          <h2 className="flex items-center gap-2 text-lg font-semibold mb-6">
-            <Activity size={20} className="text-blue-400" /> Dados da Empresa
-          </h2>
+        {/* COLUNA ESQUERDA: INPUTS E HISTÓRICO (4 colunas) */}
+        <div className="lg:col-span-4 space-y-6">
           
-          <div className="space-y-5">
-            {/* Campo Ticker com Botão de Busca */}
-            <div className="flex gap-2 items-end">
-              <div className="flex-1">
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1 ml-1">Ticker</label>
-                <input 
-                  name="ticker" 
-                  value={inputs.ticker} 
-                  onChange={handleChange} 
-                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono" 
-                />
+          {/* Painel de Busca */}
+          <section className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
+            <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-tight mb-6 text-blue-400">
+              <Activity size={18} /> Entrada de Dados
+            </h2>
+            
+            <div className="space-y-4">
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Ticker</label>
+                  <input name="ticker" value={inputs.ticker} onChange={handleChange} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 focus:ring-2 focus:ring-blue-500 outline-none uppercase font-mono" />
+                </div>
+                <button onClick={buscarDados} disabled={loading} className="bg-blue-600 hover:bg-blue-500 p-3.5 rounded-xl transition-all active:scale-95 disabled:opacity-50">
+                  {loading ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
+                </button>
               </div>
-              <button 
-                onClick={buscarDados}
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-500 p-3.5 rounded-xl transition-all active:scale-95 disabled:opacity-50 flex items-center justify-center min-w-[50px]"
-              >
-                {loading ? <Loader2 size={20} className="animate-spin" /> : <Search size={20} />}
-              </button>
-            </div>
 
-            {error && (
-              <div className="flex items-center gap-2 text-red-400 text-xs bg-red-400/10 p-2 rounded-lg">
-                <AlertCircle size={14} /> {error}
-              </div>
-            )}
+              {error && <div className="text-red-400 text-[10px] bg-red-400/10 p-2 rounded-lg flex items-center gap-2"><AlertCircle size={14}/> {error}</div>}
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1 ml-1">Preço Atual (R$)</label>
-                <input type="number" name="precoAtual" value={inputs.precoAtual} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 font-mono text-emerald-400" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1 ml-1">Div. Anual (R$)</label>
-                <input type="number" name="dividendo" value={inputs.dividendo} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 font-mono" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1 ml-1">LPA (Lucro)</label>
-                <input type="number" name="lpa" value={inputs.lpa} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 font-mono" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1 ml-1">VPA (Patrimônio)</label>
-                <input type="number" name="vpa" value={inputs.vpa} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 font-mono" />
-              </div>
-              <div>
-                <label className="block text-[10px] uppercase font-bold text-slate-500 mb-1 ml-1">P/L Atual</label>
-                <input type="number" name="pl" value={inputs.pl} onChange={handleChange} className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 font-mono" />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">Preço (R$)</label>
+                  <input type="number" name="precoAtual" value={inputs.precoAtual} onChange={handleChange} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono text-emerald-400" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">LPA</label>
+                  <input type="number" name="lpa" value={inputs.lpa} onChange={handleChange} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1 uppercase">VPA</label>
+                  <input type="number" name="vpa" value={inputs.vpa} onChange={handleChange} className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 font-mono" />
+                </div>
               </div>
             </div>
-          </div>
-        </section>
+          </section>
 
-        {/* Cards de Resultados */}
-        <section className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-6">
-          
+          {/* Painel de Histórico */}
+          <section className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="flex items-center gap-2 text-sm font-bold uppercase tracking-tight text-slate-400">
+                <History size={18} /> Recentes
+              </h2>
+              {historico.length > 0 && (
+                <button onClick={limparHistorico} className="text-slate-600 hover:text-red-400 transition-colors">
+                  <Trash2 size={16} />
+                </button>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              {historico.length === 0 ? (
+                <p className="text-slate-600 text-[10px] italic">Nenhuma ação recente...</p>
+              ) : (
+                historico.map((item) => (
+                  <button 
+                    key={item.id}
+                    onClick={() => carregarDoHistorico(item)}
+                    className="w-full flex justify-between items-center p-3 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl transition-all group text-left"
+                  >
+                    <div>
+                      <span className="font-bold text-blue-400">{item.ticker}</span>
+                      <span className="text-slate-600 text-[10px] ml-2 font-mono">R$ {item.precoAtual}</span>
+                    </div>
+                    <ArrowUpRight size={14} className="text-slate-700 group-hover:text-emerald-500 transition-colors" />
+                  </button>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+
+        {/* COLUNA DIREITA: RESULTADOS (8 colunas) */}
+        <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Card Bazin */}
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 relative overflow-hidden group">
-            <div className="absolute -top-4 -right-4 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><DollarSign size={100} /></div>
-            <h3 className="text-emerald-500 font-bold uppercase text-[10px] tracking-widest mb-1">Estratégia Bazin</h3>
-            <p className="text-xl font-light text-slate-300 mb-4 italic">"O dividendo é a prova do lucro."</p>
-            <div className="space-y-1">
-              <span className="text-slate-500 text-xs">Preço Teto (Yield 6%):</span>
-              <div className="text-4xl font-mono text-emerald-400">R$ {results.bazin?.teto.toFixed(2)}</div>
-            </div>
-            <div className={`mt-6 inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-wider ${results.bazin?.status === 'Desconto' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
-              <ShieldCheck size={16} /> {results.bazin?.status}
-            </div>
+          <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-5"><DollarSign size={80} /></div>
+             <h3 className="text-emerald-500 font-black text-xs uppercase mb-2">Décio Bazin</h3>
+             <div className="text-sm text-slate-500 mb-6 font-medium">Preço Máximo de Compra</div>
+             <div className="text-5xl font-mono text-emerald-400 mb-4">R$ {tetoBazin.toFixed(2)}</div>
+             <div className={`inline-block px-4 py-1 rounded-full text-[10px] font-bold ${inputs.precoAtual < tetoBazin ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-500'}`}>
+                {inputs.precoAtual < tetoBazin ? '✓ DENTRO DA MARGEM' : '✕ ACIMA DO TETO'}
+             </div>
           </div>
 
           {/* Card Graham */}
-          <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 relative overflow-hidden group">
-            <div className="absolute -top-4 -right-4 p-8 opacity-5 group-hover:opacity-10 transition-opacity"><TrendingUp size={100} /></div>
-            <h3 className="text-blue-500 font-bold uppercase text-[10px] tracking-widest mb-1">Estratégia Graham</h3>
-            <p className="text-xl font-light text-slate-300 mb-4 italic">"Preço é o que você paga, valor é o que leva."</p>
-            <div className="space-y-1">
-              <span className="text-slate-500 text-xs">Valor Intrínseco (Vi):</span>
-              <div className="text-4xl font-mono text-blue-400">R$ {results.graham?.justo.toFixed(2)}</div>
-            </div>
-            <p className="mt-6 text-sm font-bold">
-              Margem de Seg.: <span className={results.graham?.margem > 20 ? 'text-emerald-400' : 'text-yellow-500'}>
-                {results.graham?.margem.toFixed(1)}%
-              </span>
-            </p>
+          <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 relative overflow-hidden">
+             <div className="absolute top-0 right-0 p-4 opacity-5"><ShieldCheck size={80} /></div>
+             <h3 className="text-blue-500 font-black text-xs uppercase mb-2">Benjamin Graham</h3>
+             <div className="text-sm text-slate-500 mb-6 font-medium">Valor Intrínseco Estimado</div>
+             <div className="text-5xl font-mono text-blue-400 mb-4">R$ {valorJustoGraham.toFixed(2)}</div>
+             <p className="text-xs text-slate-400">Margem: <span className="text-blue-300 font-mono">{((valorJustoGraham - inputs.precoAtual) / valorJustoGraham * 100).toFixed(1)}%</span></p>
           </div>
 
           {/* Card Lynch */}
-          <div className="bg-slate-900 p-8 rounded-2xl border border-slate-800 md:col-span-2 flex flex-col md:flex-row justify-between items-center bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-purple-900/20 via-slate-900 to-slate-900">
-            <div>
-              <h3 className="text-purple-400 font-bold uppercase text-[10px] tracking-widest mb-1">Estratégia Peter Lynch</h3>
-              <p className="text-2xl font-light text-slate-300 mb-2">PEG Ratio (Growth at Reasonable Price)</p>
-              <p className="text-slate-500 text-xs max-w-sm">Avalia se o crescimento esperado justifica o preço pago pelo lucro atual.</p>
+          <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 md:col-span-2 flex flex-col md:flex-row items-center justify-between">
+            <div className="text-center md:text-left">
+              <h3 className="text-purple-400 font-black text-xs uppercase mb-2">Peter Lynch</h3>
+              <div className="text-2xl font-light text-slate-200">PEG Ratio</div>
+              <p className="text-xs text-slate-600 mt-2 max-w-[200px]">P/L dividido pelo Crescimento. Ideal abaixo de 1.0.</p>
             </div>
-            <div className="text-center md:text-right mt-6 md:mt-0">
-              <div className="text-6xl font-mono text-purple-400 tracking-tighter">{results.lynch?.peg.toFixed(2)}</div>
-              <div className={`mt-2 text-[10px] font-black uppercase px-3 py-1 rounded-lg ${results.lynch?.status === 'Excelente' ? 'bg-purple-500 text-white' : 'bg-slate-800 text-slate-400'}`}>
-                Status: {results.lynch?.status}
-              </div>
+            <div className="mt-6 md:mt-0">
+              <div className="text-7xl font-mono text-purple-500 tracking-tighter">{pegRatio.toFixed(2)}</div>
+              <div className="text-[10px] text-center uppercase font-bold text-slate-500 mt-2">{pegRatio < 1 ? '💎 Oportunidade' : '⚖️ Avaliação Justa'}</div>
             </div>
           </div>
-        </section>
+        </div>
       </main>
-
-      <footer className="max-w-6xl mx-auto mt-12 text-center text-slate-700 text-[9px] uppercase leading-relaxed tracking-widest pb-10">
-        Desenvolvido para análise quantitativa • Não é recomendação de compra <br/>
-        Dados baseados em Graham (22.5), Bazin (6% Yield) e Lynch (PEG &lt; 1.0)
-      </footer>
     </div>
   );
 };
