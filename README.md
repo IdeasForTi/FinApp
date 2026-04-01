@@ -29,3 +29,5 @@ src/
  │    ├── CardGraham.jsx    # Card métrico: Valor Intrínseco
  │    └── CardLynch.jsx     # Card métrico: Crescimento e PEG Ratio
  └── App.jsx               # Orquestrador de estado e lógica de cálculos
+
+ 
