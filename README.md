@@ -1,16 +1,31 @@
-# React + Vite
+# 📈 IdeasFor: Finance Pro v2.0
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+O **Value Analyzer Pro** é uma ferramenta de análise fundamentalista de ações desenvolvida para investidores que buscam decisões baseadas em dados. A aplicação utiliza as metodologias consagradas de **Benjamin Graham**, **Décio Bazin** e **Peter Lynch** para calcular o valor intrínseco e a margem de segurança de ativos da B3.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ✨ Funcionalidades
 
-## React Compiler
+* **Busca em Tempo Real:** Integração direta com a API **Brapi** para cotações e dados fundamentalistas atualizados.
+* **Análise de Bazin:** Cálculo de preço teto baseado em um Dividend Yield mínimo de 6%.
+* **Fórmula de Graham:** Estimativa de valor justo considerando lucro (LPA) e patrimônio (VPA).
+* **PEG Ratio Ajustado (Lynch):** Avaliação de crescimento somada ao retorno por dividendos.
+* **Histórico Local:** Armazenamento automático das últimas 5 pesquisas via `localStorage`.
+* **Interface Responsiva:** Design "Dark Mode" premium otimizado para desktop e mobile com Tailwind CSS.
+* **Tooltips Informativos:** Explicações teóricas integradas em cada métrica para facilitar o entendimento.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## 🛠️ Estrutura do Projeto
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+O projeto segue uma arquitetura modular baseada em componentes:
+
+```text
+src/
+ ├── components/
+ │    ├── Tooltip.jsx       # Componente de auxílio visual (balão informativo)
+ │    ├── PainelEntrada.jsx # Gerenciamento de inputs, busca e histórico
+ │    ├── CardBazin.jsx     # Card métrico: Estratégia de Dividendos
+ │    ├── CardGraham.jsx    # Card métrico: Valor Intrínseco
+ │    └── CardLynch.jsx     # Card métrico: Crescimento e PEG Ratio
+ └── App.jsx               # Orquestrador de estado e lógica de cálculos
