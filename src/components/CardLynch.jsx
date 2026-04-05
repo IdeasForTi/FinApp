@@ -1,23 +1,51 @@
 import React from 'react';
-import Tooltip from './Tooltip';
+import { TrendingUp, Info } from 'lucide-react';
 
-const CardLynch = ({ peg, dy }) => (
-  <div className="bg-slate-900 p-8 rounded-3xl border border-slate-800 md:col-span-2 flex flex-col md:flex-row items-center justify-between group relative overflow-visible">
-    <div className="text-center md:text-left z-10">
-      <div className="flex items-center justify-center md:justify-start gap-1 mb-2">
-        <h3 className="text-purple-400 font-black text-xs uppercase tracking-widest">Peter Lynch</h3>
-        <Tooltip title="PEG Ratio Ajustado" content="P/L ÷ (Crescimento + Yield). Valores abaixo de 1.0 indicam ações baratas em relação ao seu crescimento." />
+const CardLynch = ({ peg, dy }) => {
+  // Garantimos que os valores sejam numéricos antes de formatar
+  const safePeg = Number(peg) || 0;
+  const safeDy = Number(dy) || 0;
+
+  const getStatus = (val) => {
+    if (val <= 1.0) return { label: 'Oportunidade', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' };
+    if (val <= 1.5) return { label: 'Justo', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' };
+    return { label: 'Caro', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/20' };
+  };
+
+  const status = getStatus(safePeg);
+
+  return (
+    <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl relative overflow-hidden group">
+      <div className="flex justify-between items-start mb-6">
+        <div>
+          <h3 className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1 flex items-center gap-2">
+            <TrendingUp size={14} /> Índice de Lynch (PEG)
+          </h3>
+          <p className="text-[10px] text-slate-600 font-medium uppercase">Preço / (Crescimento + DY)</p>
+        </div>
+        <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-tighter border ${status.bg} ${status.color} ${status.border}`}>
+          {status.label}
+        </div>
       </div>
-      <div className="text-2xl font-light text-slate-200">PEG Ratio Ajustado</div>
-      <p className="text-[10px] text-slate-600 mt-2 max-w-[250px] uppercase font-bold tracking-tight">Yield de {dy.toFixed(2)}% somado ao crescimento.</p>
-    </div>
-    <div className="mt-6 md:mt-0 text-center md:text-right z-10">
-      <div className="text-7xl font-mono text-purple-500 tracking-tighter">{peg.toFixed(2)}</div>
-      <div className={`mt-2 text-[10px] inline-block uppercase font-bold px-4 py-1.5 rounded-lg border ${peg < 1 && peg > 0 ? 'bg-purple-500/10 text-purple-400 border-purple-500/20' : 'bg-slate-800 text-slate-500'}`}>
-        {peg < 1 && peg > 0 ? '💎 Oportunidade' : '⚖️ Avaliação Neutra'}
+
+      <div className="flex items-baseline gap-2 mb-2">
+        <span className={`text-4xl font-black tracking-tighter ${status.color}`}>
+          {safePeg.toFixed(2)}
+        </span>
+      </div>
+
+      <div className="flex items-center gap-4 border-t border-slate-800/50 pt-4 mt-4">
+        <div>
+          <p className="text-[9px] text-slate-500 uppercase font-bold">DY Considerado</p>
+          <p className="text-sm font-mono text-slate-300">{safeDy.toFixed(2)}%</p>
+        </div>
+        <div className="h-8 w-[1px] bg-slate-800"></div>
+        <button className="text-slate-700 hover:text-blue-400 transition-colors">
+          <Info size={16} />
+        </button>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default CardLynch;
