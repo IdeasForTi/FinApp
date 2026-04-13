@@ -18,17 +18,25 @@ const StockApp = () => {
   const [mainTab, setMainTab] = useState('variavel'); 
   const [isFiiMode, setIsFiiMode] = useState(false);
   
+  // Estados de Histórico inicializados como array vazio para evitar erros de renderização
   const [historyVariavel, setHistoryVariavel] = useState([]);
   const [historyFixa, setHistoryFixa] = useState([]);
 
-  // ESTADOS SEPARADOS PARA CADA CATEGORIA
-  const [lastAcao, setLastAcao] = useState({ ticker: 'BBAS3', currentPrice: '0.00', dividendYield: '0.00', eps: '0.00', bvps: '0.00', peRatio: '0.00', growthRate: DefaultGrowthRate });
-  const [lastFii, setLastFii] = useState({ ticker: 'HGLG11', currentPrice: '0.00', dividendYield: '0.00', bvps: '0.00' });
-  const [lastFixa, setLastFixa] = useState({ cdiCapital: '1000.00', cdiTaxaAnual: '10.75', cdiRentabilidade: '100', cdiMeses: '12' });
+  const [inputs, setInputs] = useState({ 
+    ticker: 'BBAS3',
+    currentPrice: '0.00',
+    dividendYield: '0.00',
+    eps: '0.00',
+    bvps: '0.00',
+    peRatio: '0.00',
+    growthRate: DefaultGrowthRate,
+    cdiCapital: '1000.00',
+    cdiTaxaAnual: '10.75',
+    cdiRentabilidade: '100',
+    cdiMeses: '12'
+  });
 
-  // O input atual que reflete na tela
-  const [inputs, setInputs] = useState(lastAcao);
-
+  // Carregar dados do LocalStorage ao montar o componente
   useEffect(() => {
     const savedVariavel = localStorage.getItem('historicoVariavel_v5');
     const savedFixa = localStorage.getItem('historicoFixa_v5');
@@ -36,24 +44,9 @@ const StockApp = () => {
     if (savedFixa) setHistoryFixa(JSON.parse(savedFixa));
   }, []);
 
-  // TROCA DE ABAS COM CARREGAMENTO DO ÚLTIMO ESTADO
-  useEffect(() => {
-    if (mainTab === 'fixa') {
-      setInputs(lastFixa);
-    } else {
-      setInputs(isFiiMode ? lastFii : lastAcao);
-    }
-  }, [mainTab, isFiiMode]);
-
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const newInputs = { ...inputs, [name]: value };
-    setInputs(newInputs);
-
-    // Salva o rascunho no estado temporário correspondente
-    if (mainTab === 'fixa') setLastFixa(newInputs);
-    else if (isFiiMode) setLastFii(newInputs);
-    else setLastAcao(newInputs);
+    setInputs(prev => ({ ...prev, [name]: value }));
   };
 
   const salvarNoHistoricoVariavel = (dados) => {
@@ -77,6 +70,7 @@ const StockApp = () => {
   const fetchData = async () => {
     if (!inputs.ticker || mainTab === 'fixa') return;
     setLoading(true);
+    setError('');
     try {
       const response = await fetch(`${BaseUrl}${inputs.ticker.toUpperCase()}?token=${Token}`);
       const data = await response.json();
@@ -91,7 +85,6 @@ const StockApp = () => {
           bvps: stock.bookValuePerShare?.toFixed(2) || inputs.bvps,
         };
         setInputs(novosDados);
-        if (isFiiMode) setLastFii(novosDados); else setLastAcao(novosDados);
         salvarNoHistoricoVariavel(novosDados);
       }
     } catch (err) { setError('Erro na API'); }
@@ -99,14 +92,14 @@ const StockApp = () => {
   };
 
   const m = (() => {
-    const p = Number(inputs.currentPrice) || 0;
-    const dy = Number(inputs.dividendYield) || 0;
+    const p = Number(inputs.currentPrice);
+    const dy = Number(inputs.dividendYield);
     const metaYield = BazinYieldTarget || 0.06;
     if (isFiiMode) return { tetoBazin: (dy * 12) / metaYield };
     return {
       tetoBazin: (p * (dy / 100)) / metaYield,
-      graham: Math.sqrt(GrahamMultiplier * (Number(inputs.eps) || 0) * (Number(inputs.bvps) || 0)),
-      peg: (Number(inputs.peRatio) || 0) / ((Number(inputs.growthRate) || 0) + dy)
+      graham: Math.sqrt(GrahamMultiplier * Number(inputs.eps) * Number(inputs.bvps)),
+      peg: Number(inputs.peRatio) / (Number(inputs.growthRate) + dy)
     };
   })();
 
@@ -117,23 +110,26 @@ const StockApp = () => {
           <h1 className="text-2xl font-black italic uppercase tracking-tighter bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">{Name}</h1>
           <p className="text-[8px] text-slate-600 font-bold uppercase">{Developer} | v{Version}</p>
         </div>
-        <nav className="flex gap-2 bg-slate-900 p-1 rounded-xl shadow-inner">
-          <button onClick={() => setMainTab('variavel')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${mainTab === 'variavel' ? 'bg-blue-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Variável</button>
-          <button onClick={() => setMainTab('fixa')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${mainTab === 'fixa' ? 'bg-emerald-600 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>Fixa</button>
+        <nav className="flex gap-2 bg-slate-900 p-1 rounded-xl">
+          <button onClick={() => setMainTab('variavel')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${mainTab === 'variavel' ? 'bg-blue-600 shadow-lg' : 'text-slate-500'}`}>Variável</button>
+          <button onClick={() => setMainTab('fixa')} className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase transition-all ${mainTab === 'fixa' ? 'bg-emerald-600 shadow-lg' : 'text-slate-500'}`}>Fixa</button>
         </nav>
       </header>
 
       <main className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8">
         <aside className="lg:col-span-4">
           <PainelEntrada 
-            mainTab={mainTab} inputs={inputs} handleChange={handleChange} buscarDados={fetchData} loading={loading} error={error}
-            isFiiMode={isFiiMode} setIsFiiMode={setIsFiiMode} historyVariavel={historyVariavel} historyFixa={historyFixa}
-            setInputs={(item) => {
-                setInputs(item);
-                if (mainTab === 'fixa') setLastFixa(item);
-                else if (isFiiMode) setLastFii(item);
-                else setLastAcao(item);
-            }} 
+            mainTab={mainTab}
+            inputs={inputs}
+            handleChange={handleChange}
+            buscarDados={fetchData}
+            loading={loading}
+            error={error}
+            isFiiMode={isFiiMode}
+            setIsFiiMode={setIsFiiMode}
+            historyVariavel={historyVariavel || []}
+            historyFixa={historyFixa || []}
+            setInputs={setInputs}
             salvarCalculoFixa={salvarCalculoFixa}
           />
         </aside>

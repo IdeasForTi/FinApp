@@ -1,31 +1,41 @@
 import React from 'react';
-import { AlertTriangle, TrendingUp, ShieldCheck } from 'lucide-react'; // Importação que faltava
+import { ShieldCheck, AlertCircle } from 'lucide-react';
+import GraficoUpside from './GraficoUpside';
 
 const CardGraham = ({ valor, precoAtual }) => {
-  const preco = parseFloat(precoAtual || 0);
-  const teto = parseFloat(valor || 0);
-  const upside = teto > 0 ? ((teto - preco) / preco) * 100 : 0;
+  const justo = Number(valor) || 0;
+  const atual = Number(precoAtual) || 0;
+  
+  // Cálculo de Margem de Segurança
+  const margem = justo > 0 ? ((justo / atual) - 1) * 100 : 0;
+  const isSeguro = atual < justo;
 
   return (
-    <div className="bg-slate-900 border border-slate-800 p-6 rounded-xl shadow-lg">
+    <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl flex flex-col h-full">
       <div className="flex justify-between items-start mb-4">
         <div>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest">Modelo de Graham</p>
-          <h3 className="text-xl font-bold text-white">Valor Intrínseco</h3>
+          <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-1">
+            Fórmula de Graham
+          </p>
+          <h3 className="text-white text-xl font-bold italic tracking-tighter">PREÇO JUSTO</h3>
         </div>
-        <ShieldCheck className="text-blue-500 w-5 h-5" />
+        <div className={`p-2 rounded-lg ${isSeguro ? 'bg-emerald-500/10 text-emerald-500' : 'bg-red-500/10 text-red-400'}`}>
+          {isSeguro ? <ShieldCheck size={20} /> : <AlertCircle size={20} />}
+        </div>
       </div>
 
-      <div className="space-y-4">
-        <div>
-          <p className="text-3xl font-mono font-black text-white">R$ {teto.toFixed(2)}</p>
-          <p className="text-slate-500 text-xs mt-1">Preço Máximo Sugerido</p>
-        </div>
+      <div className="mb-6">
+        <p className="text-4xl font-black font-mono text-white">
+          R$ {justo.toFixed(2)}
+        </p>
+        <p className={`text-sm font-bold mt-1 ${isSeguro ? 'text-emerald-500' : 'text-red-400'}`}>
+          {isSeguro ? `Margem: +${margem.toFixed(2)}%` : `Desconto: ${margem.toFixed(2)}%`}
+        </p>
+      </div>
 
-        <div className={`flex items-center gap-2 p-3 rounded-lg font-bold text-xs uppercase tracking-tighter ${upside > 0 ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-          {upside > 0 ? <TrendingUp size={16} /> : <AlertTriangle size={16} />}
-          {upside > 0 ? `Upside: ${upside.toFixed(1)}%` : `Overpriced: ${Math.abs(upside).toFixed(1)}%`}
-        </div>
+      {/* GRÁFICO INSERIDO AQUI DENTRO */}
+      <div className="mt-auto pt-4 border-t border-slate-800">
+        <GraficoUpside precoAtual={atual} valorAlvo={justo} tipo="Graham" />
       </div>
     </div>
   );
