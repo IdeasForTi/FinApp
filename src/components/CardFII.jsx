@@ -1,5 +1,5 @@
 import React from 'react';
-import { MoveUpRight, AlertTriangle, Building2, Info, TrendingUp, BarChart3 } from 'lucide-react';
+import { MoveUpRight, AlertTriangle, Building2, TrendingUp, Percent } from 'lucide-react';
 
 const CardFII = ({ 
   ticker, 
@@ -8,31 +8,32 @@ const CardFII = ({
   vpa, 
   data = {} 
 }) => {
-  // Normalização dos dados: Garante que sejam números válidos
+  // 1. NORMALIZAÇÃO E CÁLCULOS
   const tickerFinal = ticker || data?.ticker || '---';
   const current = Number(precoAtual) || 0;
-  const vpaFinal = Number(vpa) || 1; // Evita divisão por zero
+  const vpaFinal = Number(vpa) || 1; 
   const rendimento = Number(rendimentoMensal) || 0;
   
-  // Cálculo do P/VP (Onde estava dando 3.31 por erro de referência)
+  // Cálculo do P/VP (Saúde Patrimonial)
   const pvp = current / vpaFinal;
   
+  // Cálculo do DY Anual dinâmico: (Rendimento Mensal * 12) / Preço Atual
+  const dyAnual = current > 0 ? ((rendimento * 12) / current) * 100 : 0;
+  
   // Cálculo do Preço Teto Bazin para FII (Rendimento Mensal * 12 / 6%)
-  // Se o rendimento for 1.00, o teto é 200.00
   const target = (rendimento * 12) / 0.06;
   
-  // Cálculo do Upside (Potencial de Valorização até o Preço Teto)
+  // Margem de Segurança / Upside
   const upside = current > 0 && target > 0 ? ((target / current) - 1) * 100 : 0;
   
-  // Percentual para a barra de progresso (limitado entre 0 e 100)
+  // Barra de progresso (0% a 100%)
   const percentualBarra = Math.min(Math.max((current / target) * 100, 0), 100);
-  
   const isDescontado = current < target && target > 0;
 
   return (
     <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl w-full transition-all hover:border-slate-700">
       
-      {/* 1. CABEÇALHO: Ticker e Potencial */}
+      {/* 1. CABEÇALHO: Ticker e Margem de Segurança */}
       <div className="flex justify-between items-start mb-6">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-slate-950 flex items-center justify-center text-emerald-500 border border-slate-800 shadow-inner">
@@ -58,8 +59,8 @@ const CardFII = ({
         </div>
       </div>
 
-      {/* 2. GRID DE MÉTRICAS PRINCIPAIS */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+      {/* 2. GRID DE MÉTRICAS PRINCIPAIS (5 Colunas) */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
         <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
           <p className="text-slate-500 text-[9px] font-black uppercase mb-1">Cotação Atual</p>
           <p className="text-xl font-mono font-bold text-white">R$ {current.toFixed(2)}</p>
@@ -72,6 +73,14 @@ const CardFII = ({
           <p className="text-xl font-mono font-bold text-white">R$ {rendimento.toFixed(2)}</p>
         </div>
 
+        {/* MÉTRICA ADICIONADA: DY ANUAL */}
+        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
+          <p className="text-emerald-400 text-[9px] font-black uppercase mb-1 flex items-center gap-1">
+            DY Anual <Percent size={10} />
+          </p>
+          <p className="text-xl font-mono font-bold text-white">{dyAnual.toFixed(2)}%</p>
+        </div>
+
         <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
           <p className="text-slate-500 text-[9px] font-black uppercase mb-1">P/VP (Saúde)</p>
           <p className={`text-xl font-mono font-bold ${pvp > 1.05 ? 'text-orange-400' : 'text-emerald-400'}`}>
@@ -79,13 +88,13 @@ const CardFII = ({
           </p>
         </div>
 
-        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
-          <p className="text-slate-500 text-[9px] font-black uppercase mb-1">Valor Patrimonial</p>
+        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50 col-span-2 md:col-span-1">
+          <p className="text-slate-500 text-[9px] font-black uppercase mb-1">VPA</p>
           <p className="text-xl font-mono font-bold text-slate-300">R$ {vpaFinal.toFixed(2)}</p>
         </div>
       </div>
 
-      {/* 3. VISUALIZAÇÃO DO PREÇO TETO (BARRA) */}
+      {/* 3. VISUALIZAÇÃO DO PREÇO TETO (BARRA DE PROGRESSO) */}
       <div className="relative pt-2 pb-10">
         <div className="flex justify-between items-end mb-2">
            <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Posicionamento de Preço</span>
